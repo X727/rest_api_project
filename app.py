@@ -8,6 +8,8 @@ import flask
 import json
 
 app = flask.Flask(__name__)
+jukebox_base_url="http://my-json-server.typicode.com/touchtunes/tech-assignment/jukes"
+settings_base_url="http://my-json-server.typicode.com/touchtunes/tech-assignment/settings"
 
 @app.route('/')
 def index():
@@ -22,10 +24,10 @@ def get_jukeboxes():
     return "test {} {} {} {}".format(set_id, model, offset, limit)
     
 def find_requirements(setting_id):
-    r = requests.get("http://my-json-server.typicode.com/touchtunes/tech-assignment/settings")
+    r = requests.get(settings_base_url)
     settings = r.json()
     setting = [x for x in settings["settings"] if x["id"]==setting_id ]
-    requirements = setting["requires"]
+    requirements = setting[0]["requires"]
     return requirements
     
     
