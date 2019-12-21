@@ -13,7 +13,11 @@ settings_base_url="http://my-json-server.typicode.com/touchtunes/tech-assignment
 
 @app.route('/')
 def index():
-    return get_initial_representation()
+    offset=  flask.request.args.get("offset")
+    limit=  flask.request.args.get("limit")
+    
+    limit, offset = check_pagination_values(limit, offset)
+    return get_initial_representation(limit,offset)
 
 @app.route('/testapi/v1.0/supported_jukeboxes/', methods=['GET'])
 def get_jukeboxes():
@@ -22,28 +26,9 @@ def get_jukeboxes():
     offset=  flask.request.args.get("offset")
     limit=  flask.request.args.get("limit")
     
-    if limit is None:
-        #if limit was not specified set default value
-        limit = 5
-    else:
-        #otherwise check if it is integer and abort with 400 status if not
-        try:
-            limit = int(limit)
-        except:
-            flask.abort(400, "limit parameter not a valid integer value.")
-        
-    if offset is None:
-        #if offset was not specified set default value
-        offset = 0
-    else:
-        #otherwise check if it is integer and abort with 400 status if not
-        try:
-            offset = int(offset)
-        except:
-             flask.abort(400, "offset parameter not a valid integer value.")
-             
+    limit, offset = check_pagination_values(limit, offset)
     if set_id is None:
-        return get_initial_representation()
+        return get_initial_representation(limit, offset)
     
     #get all jukeboxes based on model parameter value and convert to json
     if model is not None:
@@ -57,12 +42,9 @@ def get_jukeboxes():
         #find all jukes based on settingId parameter and return paginated json
         queried_jukes = find_all_jukes(set_id, jukes)
             
-        paginated_jukes = [queried_jukes[i:i+limit] for i in range(0, len(queried_jukes), limit)]
-        
-        if offset > len(paginated_jukes):
-            offset = len(paginated_jukes)-1
+        paginated_jukes = get_page_of_list(queried_jukes, limit, offset)
             
-        json_reply = json.dumps(paginated_jukes[offset])
+        json_reply = json.dumps(paginated_jukes)
         
         return flask.Response(json_reply, mimetype="application/json")
     else:
@@ -72,15 +54,12 @@ def get_jukeboxes():
 # Merges the values returned by settings api with jukeboxes api
 # This shows all jukeboxes that are supported by a given settingId, 
 # allowing the user to better understand the api
-def get_initial_representation(model=None):
-    #get all jukeboxes based on model parameter value and convert to json
-    if model is not None:
-        r = requests.get(jukebox_base_url+"?model={}".format(model))
-    else:
-        r = requests.get(jukebox_base_url)
+def get_initial_representation(limit, offset):
+    
+    r = requests.get(jukebox_base_url)
     jukes = r.json()
     r = requests.get(settings_base_url)
-    settings = r.json()["settings"][0:9]
+    settings = get_page_of_list(r.json()["settings"], limit, offset)
     
     for setting in settings:
         supported_jukes = find_all_jukes(setting["id"], jukes)
@@ -115,6 +94,45 @@ def find_all_jukes(set_id, jukes):
             if component_requirements.issubset(component_names):
                 queried_jukes.append(juke)
     return queried_jukes
+
+#Helper to check limit and offset values type and return them as int
+def check_pagination_values(limit, offset):
+    offset=  flask.request.args.get("offset")
+    limit=  flask.request.args.get("limit")
     
+    if limit is None:
+        #if limit was not specified set default value
+        limit = 5
+    else:
+        #otherwise check if it is integer and abort with 400 status if not
+        try:
+            limit = int(limit)
+        except:
+            flask.abort(400, "limit parameter not a valid integer value.")
+        
+    if offset is None:
+        #if offset was not specified set default value
+        offset = 0
+    else:
+        #otherwise check if it is integer and abort with 400 status if not
+        try:
+            offset = int(offset)
+        except:
+             flask.abort(400, "offset parameter not a valid integer value.")
+    return limit, offset
+
+#helper to get a specified page of some list
+#Params:
+#   -some_list: a python list that must be paginated
+#   -limit: the maximum number of entries for the page
+#   -offset: the page number of the list that must be returned
+def get_page_of_list(some_list, limit, offset):
+    paginated_list = [some_list[i:i+limit] for i in range(0, len(some_list), limit)]
+        
+    if offset > len(paginated_list):
+        offset = len(paginated_list)-1
+    
+    return paginated_list[offset]
+            
 if __name__ == '__main__':
     app.run(debug=False)
