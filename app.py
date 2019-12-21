@@ -13,9 +13,9 @@ settings_base_url="http://my-json-server.typicode.com/touchtunes/tech-assignment
 
 @app.route('/')
 def index():
-    return "Hello, World!"
+    return get_initial_representation()
 
-@app.route('/test/api/v1.0/jukeboxes/', methods=['GET'])
+@app.route('/testapi/v1.0/supported_jukeboxes/', methods=['GET'])
 def get_jukeboxes():
     set_id =  flask.request.args.get("settingId")
     model=  flask.request.args.get("model")
@@ -41,6 +41,9 @@ def get_jukeboxes():
             offset = int(offset)
         except:
              flask.abort(400, "offset parameter not a valid integer value.")
+             
+    if set_id is None:
+        return get_initial_representation()
     
     #get all jukeboxes based on model parameter value and convert to json
     if model is not None:
@@ -64,6 +67,27 @@ def get_jukeboxes():
         return flask.Response(json_reply, mimetype="application/json")
     else:
         flask.abort(404, "The query did not return any response.")
+
+# Function to return an intital representation of the data. 
+# Merges the values returned by settings api with jukeboxes api
+# This shows all jukeboxes that are supported by a given settingId, 
+# allowing the user to better understand the api
+def get_initial_representation(model=None):
+    #get all jukeboxes based on model parameter value and convert to json
+    if model is not None:
+        r = requests.get(jukebox_base_url+"?model={}".format(model))
+    else:
+        r = requests.get(jukebox_base_url)
+    jukes = r.json()
+    r = requests.get(settings_base_url)
+    settings = r.json()["settings"][0:9]
+    
+    for setting in settings:
+        supported_jukes = find_all_jukes(setting["id"], jukes)
+        setting["supported_jukeboxes"]=supported_jukes
+        
+    json_reply=json.dumps(settings)
+    return flask.Response(json_reply, mimetype="application/json")
 
 
 #Helper function that finds all requirements for a specified settingId value
