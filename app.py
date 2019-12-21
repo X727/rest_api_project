@@ -5,7 +5,7 @@
 
 import requests
 import flask
-import json
+from json import dumps
 
 app = flask.Flask(__name__)
 jukebox_base_url="http://my-json-server.typicode.com/touchtunes/tech-assignment/jukes"
@@ -19,7 +19,7 @@ def index():
     limit, offset = check_pagination_values(limit, offset)
     return get_initial_representation(limit,offset)
 
-@app.route('/testapi/v1.0/supported_jukeboxes/', methods=['GET'])
+@app.route('/testapi/v1/supported_jukeboxes/', methods=['GET'])
 def get_jukeboxes():
     set_id =  flask.request.args.get("settingId")
     model=  flask.request.args.get("model")
@@ -41,12 +41,15 @@ def get_jukeboxes():
     if len(jukes) > 0:
         #find all jukes based on settingId parameter and return paginated json
         queried_jukes = find_all_jukes(set_id, jukes)
-            
-        paginated_jukes = get_page_of_list(queried_jukes, limit, offset)
-            
-        json_reply = json.dumps(paginated_jukes)
         
-        return flask.Response(json_reply, mimetype="application/json")
+        if len(queried_jukes) > 0:
+            paginated_jukes = get_page_of_list(queried_jukes, limit, offset)
+                
+            json_reply = dumps(paginated_jukes)
+            
+            return flask.Response(json_reply, mimetype="application/json")
+        else:
+            flask.abort(404, "The query did not return any response.")
     else:
         flask.abort(404, "The query did not return any response.")
 
@@ -65,7 +68,7 @@ def get_initial_representation(limit, offset):
         supported_jukes = find_all_jukes(setting["id"], jukes)
         setting["supported_jukeboxes"]=supported_jukes
         
-    json_reply=json.dumps(settings)
+    json_reply=dumps(settings)
     return flask.Response(json_reply, mimetype="application/json")
 
 
