@@ -19,6 +19,10 @@ def index():
     limit, offset = check_pagination_values(limit, offset)
     return get_initial_representation(limit,offset)
 
+@app.route('/help')
+def show_help():
+    return flask.redirect("http://patrickignoto.com/2019/12/22/help-page-for-rest-api-project/")
+
 @app.route('/testapi/v1/supported_jukeboxes/', methods=['GET'])
 def get_jukeboxes():
     set_id =  flask.request.args.get("settingId")
@@ -29,28 +33,28 @@ def get_jukeboxes():
     limit, offset = check_pagination_values(limit, offset)
     if set_id is None:
         return get_initial_representation(limit, offset)
-    
-    #get all jukeboxes based on model parameter value and convert to json
-    if model is None:
-        jukes = get_data(jukebox_base_url)
     else:
-        jukes = get_data(jukebox_base_url+"/?model={}".format(model))
-    
-    # If no response return 404 code
-    if len(jukes) > 0:
-        #find all jukes based on settingId parameter and return paginated json
-        queried_jukes = find_all_jukes(set_id, jukes)
+        #get all jukeboxes based on model parameter value and convert to json
+        if model is None:
+            jukes = get_data(jukebox_base_url)
+        else:
+            jukes = get_data(jukebox_base_url+"/?model={}".format(model))
         
-        if len(queried_jukes) > 0:
-            paginated_jukes = get_page_of_list(queried_jukes, limit, offset)
-                
-            json_reply = dumps(paginated_jukes)
+        # If no response return 404 code
+        if len(jukes) > 0:
+            #find all jukes based on settingId parameter and return paginated json
+            queried_jukes = find_all_jukes(set_id, jukes)
             
-            return flask.Response(json_reply, mimetype="application/json")
+            if len(queried_jukes) > 0:
+                paginated_jukes = get_page_of_list(queried_jukes, limit, offset)
+                    
+                json_reply = dumps(paginated_jukes)
+                
+                return flask.Response(json_reply, mimetype="application/json")
+            else:
+                flask.abort(404, "The query did not return any response.")
         else:
             flask.abort(404, "The query did not return any response.")
-    else:
-        flask.abort(404, "The query did not return any response.")
 
 # Function to return an intital representation of the data. 
 # Merges the values returned by settings api with jukeboxes api
@@ -153,7 +157,7 @@ def get_data(url):
     try:
         r = requests.get(url)
     except:
-        flask.abort(404, "Could not access upstream api so no results are available")
+        flask.abort(404, "Could not access upstream api so no results are available.")
         
         
     if r.status_code == 200:
