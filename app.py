@@ -31,11 +31,10 @@ def get_jukeboxes():
         return get_initial_representation(limit, offset)
     
     #get all jukeboxes based on model parameter value and convert to json
-    if model is not None:
-        r = requests.get(jukebox_base_url+"?model={}".format(model))
+    if model is None:
+        jukes = get_data(jukebox_base_url)
     else:
-        r = requests.get(jukebox_base_url)
-    jukes = r.json()
+        jukes = get_data(jukebox_base_url+"/?model={}".format(model))
     
     # If no response return 404 code
     if len(jukes) > 0:
@@ -58,11 +57,10 @@ def get_jukeboxes():
 # This shows all jukeboxes that are supported by a given settingId, 
 # allowing the user to better understand the api
 def get_initial_representation(limit, offset):
+    jukes = get_data(jukebox_base_url)
     
-    r = requests.get(jukebox_base_url)
-    jukes = r.json()
-    r = requests.get(settings_base_url)
-    settings = get_page_of_list(r.json()["settings"], limit, offset)
+    all_settings = get_data(settings_base_url)
+    settings = get_page_of_list(all_settings["settings"], limit, offset)
     
     for setting in settings:
         supported_jukes = find_all_jukes(setting["id"], jukes)
@@ -70,16 +68,22 @@ def get_initial_representation(limit, offset):
         
     json_reply=dumps(settings)
     return flask.Response(json_reply, mimetype="application/json")
+    
 
 
 #Helper function that finds all requirements for a specified settingId value
 #Returns set of components required to have the specified setting
 def find_requirements(setting_id):
-    r = requests.get(settings_base_url)
-    settings = r.json()
-    setting = [x for x in settings["settings"] if x["id"]==setting_id ]
-    requirements = setting[0]["requires"]
-    return set(requirements)
+    if type(setting_id) == str:       
+        settings = get_data(settings_base_url)
+        setting = [x for x in settings["settings"] if x["id"]==setting_id ]
+        if setting:
+            requirements = setting[0]["requires"]
+            return set(requirements)
+        else:
+            flask.abort(400, "Invalid settingId passed")
+    else:
+        flask.abort(400, "Invalid settingId passed")
 
 #Helper function that finds all jukes that meet the requirement for a  specified settingId
 #Returns list of jukes that meet the requirements for a setting
@@ -100,8 +104,6 @@ def find_all_jukes(set_id, jukes):
 
 #Helper to check limit and offset values type and return them as int
 def check_pagination_values(limit, offset):
-    offset=  flask.request.args.get("offset")
-    limit=  flask.request.args.get("limit")
     
     if limit is None:
         #if limit was not specified set default value
@@ -111,7 +113,10 @@ def check_pagination_values(limit, offset):
         try:
             limit = int(limit)
         except:
-            flask.abort(400, "limit parameter not a valid integer value.")
+            flask.abort(400, "limit parameter not a valid positive integer value.")
+            
+        if limit < 1:
+            flask.abort(400, "limit parameter not a valid positive integer value.")
         
     if offset is None:
         #if offset was not specified set default value
@@ -121,7 +126,10 @@ def check_pagination_values(limit, offset):
         try:
             offset = int(offset)
         except:
-             flask.abort(400, "offset parameter not a valid integer value.")
+             flask.abort(400, "offset parameter not a valid positive integer value.")
+
+        if offset < 0:
+            flask.abort(400, "offset parameter not a valid positive integer value.")
     return limit, offset
 
 #helper to get a specified page of some list
@@ -130,12 +138,29 @@ def check_pagination_values(limit, offset):
 #   -limit: the maximum number of entries for the page
 #   -offset: the page number of the list that must be returned
 def get_page_of_list(some_list, limit, offset):
-    paginated_list = [some_list[i:i+limit] for i in range(0, len(some_list), limit)]
+    if limit > 0 and offset >= 0:
+        paginated_list = [some_list[i:i+limit] for i in range(0, len(some_list), limit)]
+            
+        if offset > len(paginated_list):
+            offset = len(paginated_list)-1
         
-    if offset > len(paginated_list):
-        offset = len(paginated_list)-1
-    
-    return paginated_list[offset]
+        return paginated_list[offset]
+    else:
+        return None
+
+#Helper function that does some error checking and exception handling when getting data from other servers.    
+def get_data(url):
+    try:
+        r = requests.get(url)
+    except:
+        flask.abort(404, "Could not access upstream api so no results are available")
+        
+        
+    if r.status_code == 200:
+        data = r.json()
+        return data
+    else:
+        flask.abort(404, "Unsupported status returned by upstream api, so no results are available.")
             
 if __name__ == '__main__':
     app.run(debug=False)
