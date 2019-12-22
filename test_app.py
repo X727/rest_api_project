@@ -2,7 +2,7 @@
 """
 Created on Sat Dec 21 13:20:35 2019
 
-@author: pat_i
+@author: Patrick Ignoto
 """
 
 import unittest

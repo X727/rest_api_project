@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-@author: patrick_ignoto
+@author: Patrick Ignoto
 """
 
 import requests
