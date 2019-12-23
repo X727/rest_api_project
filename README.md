@@ -7,8 +7,8 @@
 2. Go to the code directory and run the code using `python app.py`
 3. The server is now running at `localhost:5000` and you can send queries using the program of your choice.
 
-## EXAMPLE
-
+## EXAMPLE 
+`curl -v "http://localhost:5000/testapi/v1/supported_jukeboxes/?settingId=515ef38b-0529-418f-a93a-7f2347fc5805&model=angelina"`
 
 ## TESTING
 
